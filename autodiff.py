@@ -1,14 +1,19 @@
+"""
+David Grant
+CSE599w
+"""
+
 import numpy as np
 
 class Node(object):
     """Node in a computation graph."""
     def __init__(self):
         """Constructor, new node is indirectly created by Op object __call__ method.
-            
+
             Instance variables
             ------------------
             self.inputs: the list of input nodes.
-            self.op: the associated op object, 
+            self.op: the associated op object,
                 e.g. add_op object if this node is created by adding two other nodes.
             self.const_attr: the add or multiply constant,
                 e.g. self.const_attr=5 if this node is created by x+5.
@@ -37,13 +42,13 @@ class Node(object):
     __rmul__ = __mul__
 
     def __str__(self):
-        """Allow print to display node name.""" 
+        """Allow print to display node name."""
         return self.name
 
     __repr__ = __str__
 
 def Variable(name):
-    """User defined variables in an expression.  
+    """User defined variables in an expression.
         e.g. x = Variable(name = "x")
     """
     placeholder_node = placeholder_op()
@@ -54,7 +59,7 @@ class Op(object):
     """Op represents operations performed on nodes."""
     def __call__(self):
         """Create a new node and associate the op object with the node.
-        
+
         Returns
         -------
         The new node object.
@@ -188,7 +193,7 @@ class MatMulOp(Op):
 
     def gradient(self, node, output_grad):
         """Given gradient of multiply node, return gradient contributions to each input.
-            
+
         Useful formula: if Y=AB, then dA=dY B^T, dB=A^T dY
         """
         """TODO: Your code here"""
@@ -253,7 +258,7 @@ oneslike_op = OnesLikeOp()
 zeroslike_op = ZerosLikeOp()
 
 class Executor:
-    """Executor computes values for a given subset of nodes in a computation graph.""" 
+    """Executor computes values for a given subset of nodes in a computation graph."""
     def __init__(self, eval_node_list):
         """
         Parameters
@@ -270,12 +275,21 @@ class Executor:
 
         Returns
         -------
-        A list of values for nodes in eval_node_list. 
+        A list of values for nodes in eval_node_list.
         """
         node_to_val_map = dict(feed_dict)
-        # Traverse graph in topological sort order and compute values for all nodes.
+        # Traverse graph in topological sort order and compute values for all
+        # nodes.
         topo_order = find_topo_sort(self.eval_node_list)
-        """TODO: Your code here"""
+
+        for node in topo_order:
+            given_val = feed_dict.get(node)
+
+            if given_val is not None:
+                node_to_val_map[node] = given_val
+            else:
+                node_to_val_map[node] = node.op.compute(node,
+                    [feed_dict[k] for k in node.inputs])
 
         # Collect node values.
         node_val_results = [node_to_val_map[node] for node in self.eval_node_list]
@@ -297,29 +311,42 @@ def gradients(output_node, node_list):
 
     # a map from node to a list of gradient contributions from each output node
     node_to_output_grads_list = {}
-    # Special note on initializing gradient of output_node as oneslike_op(output_node):
-    # We are really taking a derivative of the scalar reduce_sum(output_node)
-    # instead of the vector output_node. But this is the common case for loss function.
+    # Special note on initializing gradient of output_node as
+    # oneslike_op(output_node): We are really taking a derivative of the scalar
+    # reduce_sum(output_node) instead of the vector output_node. But this is the
+    # common case for loss function.
     node_to_output_grads_list[output_node] = [oneslike_op(output_node)]
     # a map from node to the gradient of that node
     node_to_output_grad = {}
-    # Traverse graph in reverse topological order given the output_node that we are taking gradient wrt.
+
+    # Traverse graph in reverse topological order given the output_node that we
+    #  are taking gradient wrt.
     reverse_topo_order = reversed(find_topo_sort([output_node]))
 
-    """TODO: Your code here"""
+    for node in reverse_topo_order:
+        print(node, node.inputs)
+
+        grad = oneslike_op(node)
+        node_to_output_grad[node] = grad
+
+        if len(node.inputs) > 0:
+            for input in node.inputs:
+                input_grads = node.op.gradient(input, grad)
+
+            node_to_output_grads_list[node] = input_grads
 
     # Collect results for gradients requested.
     grad_node_list = [node_to_output_grad[node] for node in node_list]
     return grad_node_list
 
 ##############################
-####### Helper Methods ####### 
+####### Helper Methods #######
 ##############################
 
 def find_topo_sort(node_list):
     """Given a list of nodes, return a topological sort list of nodes ending in them.
-    
-    A simple algorithm is to do a post-order DFS traversal on the given nodes, 
+
+    A simple algorithm is to do a post-order DFS traversal on the given nodes,
     going backwards based on input edges. Since a node is added to the ordering
     after all its predecessors are traversed due to post-order DFS, we get a topological
     sort.
