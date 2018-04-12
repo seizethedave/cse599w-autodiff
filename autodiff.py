@@ -192,14 +192,22 @@ class MatMulOp(Op):
 
     def compute(self, node, input_vals):
         """Given values of input nodes, return result of matrix multiplication."""
-        """TODO: Your code here"""
+        assert len(input_vals) == 2
+        return np.matmul(
+            input_vals[0].transpose() if node.matmul_attr_trans_A else input_vals[0],
+            input_vals[1].transpose() if node.matmul_attr_trans_B else input_vals[1]
+        )
 
     def gradient(self, node, output_grad):
         """Given gradient of multiply node, return gradient contributions to each input.
 
         Useful formula: if Y=AB, then dA=dY B^T, dB=A^T dY
         """
-        """TODO: Your code here"""
+        print(node, output_grad)
+        return (
+            matmul_op(output_grad, node.inputs[1], False, True),
+            matmul_op(node.inputs[0], output_grad, True, False)
+        )
 
 class PlaceholderOp(Op):
     """Op to feed value to a nodes."""
@@ -321,12 +329,9 @@ def gradients(output_node, node_list):
     #  are taking gradient wrt.
     reverse_topo_order = reversed(find_topo_sort([output_node]))
 
-    print("gradients({}, {})".format(output_node, node_list))
-
     node_to_output_grad[output_node] = oneslike_op(output_node)
 
     for node in reverse_topo_order:
-        print("  gradients() -> {}".format(node))
         if len(node.inputs) > 0:
             grad = node_to_output_grad.get(node)
             grad_in = node.op.gradient(node, grad)
