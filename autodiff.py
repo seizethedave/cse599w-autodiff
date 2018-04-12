@@ -142,11 +142,12 @@ class MulOp(Op):
 
     def compute(self, node, input_vals):
         """Given values of two input nodes, return result of element-wise multiplication."""
-        """TODO: Your code here"""
+        assert len(input_vals) == 2
+        return input_vals[0] * input_vals[1]
 
     def gradient(self, node, output_grad):
         """Given gradient of multiply node, return gradient contributions to each input."""
-        """TODO: Your code here"""
+        return output_grad * node.inputs[1], output_grad * node.inputs[0]
 
 class MulByConstOp(Op):
     """Op to element-wise multiply a nodes by a constant."""
@@ -164,8 +165,6 @@ class MulByConstOp(Op):
 
     def gradient(self, node, output_grad):
         """Given gradient of multiplication node, return gradient contribution to input."""
-        """TODO: Your code here"""
-        # import pdb; pdb.set_trace()
         return [output_grad * node.const_attr]
 
 class MatMulOp(Op):
