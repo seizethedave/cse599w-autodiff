@@ -35,7 +35,8 @@ class Node(object):
         return new_node
 
     def __mul__(self, other):
-        """TODO: Your code here"""
+        op_type = mul_op if isinstance(other, Node) else mul_byconst_op
+        return op_type(self, other)
 
     # Allow left-hand-side add and multiply.
     __radd__ = __add__
@@ -158,11 +159,14 @@ class MulByConstOp(Op):
 
     def compute(self, node, input_vals):
         """Given values of input node, return result of element-wise multiplication."""
-        """TODO: Your code here"""
+        assert len(input_vals) == 1
+        return node.const_attr * input_vals[0]
 
     def gradient(self, node, output_grad):
         """Given gradient of multiplication node, return gradient contribution to input."""
         """TODO: Your code here"""
+        # import pdb; pdb.set_trace()
+        return [output_grad * node.const_attr]
 
 class MatMulOp(Op):
     """Op to matrix multiply two nodes."""
@@ -283,13 +287,9 @@ class Executor:
         topo_order = find_topo_sort(self.eval_node_list)
 
         for node in topo_order:
-            given_val = feed_dict.get(node)
-
-            if given_val is not None:
-                node_to_val_map[node] = given_val
-            else:
-                node_to_val_map[node] = node.op.compute(node,
-                    [feed_dict[k] for k in node.inputs])
+            inputs = [node_to_val_map[i] for i in node.inputs]
+            if inputs:
+                node_to_val_map[node] = node.op.compute(node, inputs)
 
         # Collect node values.
         node_val_results = [node_to_val_map[node] for node in self.eval_node_list]
@@ -306,7 +306,6 @@ def gradients(output_node, node_list):
     Returns
     -------
     A list of gradient values, one for each node in node_list respectively.
-
     """
 
     # a map from node to a list of gradient contributions from each output node
@@ -323,17 +322,20 @@ def gradients(output_node, node_list):
     #  are taking gradient wrt.
     reverse_topo_order = reversed(find_topo_sort([output_node]))
 
+    print("gradients({}, {})".format(output_node, node_list))
+
+    node_to_output_grad[output_node] = oneslike_op(output_node)
+
     for node in reverse_topo_order:
-        print(node, node.inputs)
-
-        grad = oneslike_op(node)
-        node_to_output_grad[node] = grad
-
+        print("  gradients() -> {}".format(node))
         if len(node.inputs) > 0:
-            for input in node.inputs:
-                input_grads = node.op.gradient(input, grad)
+            grad = node_to_output_grad.get(node)
+            grad_in = node.op.gradient(node, grad)
 
-            node_to_output_grads_list[node] = input_grads
+            if grad_in:
+                for grad_in_dim, input in zip(grad_in, node.inputs):
+                    node_to_output_grad[input] = \
+                        node_to_output_grad.get(input, 0.0) + grad_in_dim
 
     # Collect results for gradients requested.
     grad_node_list = [node_to_output_grad[node] for node in node_list]
