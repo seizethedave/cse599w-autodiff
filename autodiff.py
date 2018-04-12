@@ -203,7 +203,6 @@ class MatMulOp(Op):
 
         Useful formula: if Y=AB, then dA=dY B^T, dB=A^T dY
         """
-        print(node, output_grad)
         return (
             matmul_op(output_grad, node.inputs[1], False, True),
             matmul_op(node.inputs[0], output_grad, True, False)
